@@ -139,6 +139,16 @@ def parse_args(input_args=None):
         ),
     )
     parser.add_argument(
+        "--shuffle_class_images",
+        default=False,
+        action="store_true",
+        help=(
+            "Randomize order class images for prior preservation loss, to avoid reusing the same images when trained with" 
+            "multiple concepts with the same class_prompt, note that this option only makes sense if you have a much larger"
+            "number of class images compared to --num_class_images"
+        ),
+    )
+    parser.add_argument(
         "--output_dir",
         type=str,
         default="text-inversion-model",
@@ -289,6 +299,7 @@ class DreamBoothDataset(Dataset):
         pad_tokens=False,
         hflip=False,
         read_prompts_from_txts=False,
+        shuffle_class_images=False,
     ):
         self.size = size
         self.center_crop = center_crop
@@ -296,6 +307,7 @@ class DreamBoothDataset(Dataset):
         self.with_prior_preservation = with_prior_preservation
         self.pad_tokens = pad_tokens
         self.read_prompts_from_txts = read_prompts_from_txts
+        self.shuffle_class_images = shuffle_class_images
 
         self.instance_images_path = []
         self.class_images_path = []
@@ -310,6 +322,8 @@ class DreamBoothDataset(Dataset):
 
             if with_prior_preservation:
                 class_img_path = [(x, concept["class_prompt"]) for x in Path(concept["class_data_dir"]).iterdir() if x.is_file()]
+                if self.shuffle_class_images==True:
+                    random.shuffle(class_img_path)
                 self.class_images_path.extend(class_img_path[:num_class_images])
 
         random.shuffle(self.instance_images_path)
@@ -601,6 +615,7 @@ def main(args):
         pad_tokens=args.pad_tokens,
         hflip=args.hflip,
         read_prompts_from_txts=args.read_prompts_from_txts,
+        shuffle_class_images=args.shuffle_class_images,
     )
 
     def collate_fn(examples):
